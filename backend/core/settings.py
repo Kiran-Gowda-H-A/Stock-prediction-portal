@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+#############
+    'rest_framework_simplejwt',
     'rest_framework',
     'accounts',
     'api',
@@ -134,3 +136,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # your Vite React app
     "http://127.0.0.1:5173",
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}

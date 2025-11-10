@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
 const LoginRegisterModal = ({
@@ -15,13 +16,17 @@ const LoginRegisterModal = ({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  const navigate = useNavigate();
+
+  // 🧠 Form validation
   const validateForm = () => {
     const newErrors = {};
-    if (isRegister && !username.trim())
-      newErrors.username = "Username is required";
-    if (!email) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(email))
-      newErrors.email = "Please enter a valid email";
+    if (!username.trim()) newErrors.username = "Username is required";
+    if (isRegister) {
+      if (!email) newErrors.email = "Email is required";
+      else if (!/\S+@\S+\.\S+/.test(email))
+        newErrors.email = "Enter a valid email";
+    }
     if (!password) newErrors.password = "Password is required";
     else if (password.length < 6)
       newErrors.password = "Password must be at least 6 characters";
@@ -29,6 +34,7 @@ const LoginRegisterModal = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  // ⚡ Handle Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -37,35 +43,33 @@ const LoginRegisterModal = ({
     setMessage("");
 
     try {
-      const endpoint = isRegister ? "register/" : "login/"; // adjust login endpoint if different
-      const payload = isRegister
-        ? { username, email, password }
-        : { email, password };
+      if (isRegister) {
+        // Register first
+        await api.post("register/", { username, email, password });
+        setMessage("Registration successful! Logging you in...");
+      }
 
-      const response = await api.post(endpoint, payload);
+      // 🔑 Login using username & password only
+      const response = await api.post("token/", { username, password });
 
-      if (response.status === 201 || response.status === 200) {
-        setMessage(
-          isRegister
-            ? "Registration successful! You can now log in."
-            : "Login successful!"
-        );
+      if (response.status === 200) {
+        const { access, refresh } = response.data;
+        localStorage.setItem("accessToken", access);
+        localStorage.setItem("refreshToken", refresh);
+        localStorage.setItem("username", username);
 
-        // optional: store JWT token if backend sends it
-        if (response.data.access) {
-          localStorage.setItem("token", response.data.access);
-        }
-
-        // clear form + close after short delay
-        setTimeout(() => setShowModal(false), 1500);
+        setMessage("Login successful! Redirecting...");
+        setTimeout(() => {
+          setShowModal(false);
+          navigate("/dashboard");
+        }, 1000);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Auth error:", error);
       if (error.response) {
-        // Django sent back an error
         setMessage(
           error.response.data.detail ||
-            "Error: " + JSON.stringify(error.response.data)
+            "Authentication failed. Check credentials."
         );
       } else {
         setMessage("Network error — check backend connection.");
@@ -86,7 +90,7 @@ const LoginRegisterModal = ({
         className="bg-white text-gray-900 rounded-2xl shadow-xl p-8 w-[90%] max-w-md relative animate-fadeIn border border-gray-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button */}
+        {/* Close */}
         <button
           onClick={() => setShowModal(false)}
           className="absolute top-4 right-5 text-gray-400 hover:text-gray-600 text-2xl font-light"
@@ -99,7 +103,7 @@ const LoginRegisterModal = ({
           {isRegister ? "Create an Account" : "Welcome Back"}
         </h2>
 
-        {/* Success / Error Message */}
+        {/* Message */}
         {message && (
           <p
             className={`text-center mb-3 ${
@@ -114,44 +118,47 @@ const LoginRegisterModal = ({
 
         {/* Form */}
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
-          {isRegister && (
-            <div>
-              <input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                onBlur={() => setTouched((p) => ({ ...p, username: true }))}
-                className={`w-full px-4 py-2.5 rounded-lg border text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  touched.username && errors.username
-                    ? "border-red-500 focus:ring-red-400"
-                    : "border-gray-300"
-                }`}
-              />
-              {touched.username && errors.username && (
-                <p className="text-red-500 text-sm mt-1">{errors.username}</p>
-              )}
-            </div>
-          )}
-
+          {/* Username */}
           <div>
             <input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => setTouched((p) => ({ ...p, email: true }))}
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onBlur={() => setTouched((p) => ({ ...p, username: true }))}
               className={`w-full px-4 py-2.5 rounded-lg border text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                touched.email && errors.email
+                touched.username && errors.username
                   ? "border-red-500 focus:ring-red-400"
                   : "border-gray-300"
               }`}
             />
-            {touched.email && errors.email && (
-              <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+            {touched.username && errors.username && (
+              <p className="text-red-500 text-sm mt-1">{errors.username}</p>
             )}
           </div>
 
+          {/* Email (only for register) */}
+          {isRegister && (
+            <div>
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setTouched((p) => ({ ...p, email: true }))}
+                className={`w-full px-4 py-2.5 rounded-lg border text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  touched.email && errors.email
+                    ? "border-red-500 focus:ring-red-400"
+                    : "border-gray-300"
+                }`}
+              />
+              {touched.email && errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
+            </div>
+          )}
+
+          {/* Password */}
           <div>
             <input
               type="password"

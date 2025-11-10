@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
+import Dashboard from "./pages/Dashboard";
 import LoginRegisterModal from "./components/LoginRegisterModal";
 
 const App = () => {
@@ -15,27 +16,16 @@ const App = () => {
 
       <main className="flex-grow">
         <Routes>
-          {/* Home Page */}
           <Route
             path="/"
             element={<Home setShowModal={setShowModal} setIsRegister={setIsRegister} />}
           />
-
-          {/* Placeholder Dashboard (for future use) */}
-          <Route
-            path="/dashboard"
-            element={
-              <div className="flex items-center justify-center h-[80vh] text-gray-700 text-2xl font-semibold">
-                Dashboard Page (coming soon)
-              </div>
-            }
-          />
+          <Route path="/dashboard" element={<Dashboard />} />
         </Routes>
       </main>
 
       <Footer />
 
-      {/* Global Modal */}
       <LoginRegisterModal
         showModal={showModal}
         setShowModal={setShowModal}
