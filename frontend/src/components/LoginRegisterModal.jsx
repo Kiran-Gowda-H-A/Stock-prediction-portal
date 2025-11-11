@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useContext, useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
+import { AuthContext } from "./AuthProvider";
 
 const LoginRegisterModal = ({
   showModal,
@@ -15,10 +16,18 @@ const LoginRegisterModal = ({
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [redirecting, setRedirecting] = useState(false);
+  const {isLoggedIn, setIsLoggedIn} = useContext(AuthContext)
+
+  useEffect(() => {
+      // Close modal automatically if logged out (safety cleanup)
+      if (!isLoggedIn) {
+        setShowModal(false);
+      }
+    }, [isLoggedIn, setShowModal]);
 
   const navigate = useNavigate();
 
-  // 🧠 Form validation
   const validateForm = () => {
     const newErrors = {};
     if (!username.trim()) newErrors.username = "Username is required";
@@ -34,7 +43,6 @@ const LoginRegisterModal = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  // ⚡ Handle Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -44,12 +52,10 @@ const LoginRegisterModal = ({
 
     try {
       if (isRegister) {
-        // Register first
         await api.post("register/", { username, email, password });
         setMessage("Registration successful! Logging you in...");
       }
 
-      // 🔑 Login using username & password only
       const response = await api.post("token/", { username, password });
 
       if (response.status === 200) {
@@ -59,10 +65,14 @@ const LoginRegisterModal = ({
         localStorage.setItem("username", username);
 
         setMessage("Login successful! Redirecting...");
+        setRedirecting(true);
+
+        // wait 1.5 seconds before redirecting
         setTimeout(() => {
           setShowModal(false);
+          setIsLoggedIn(true);
           navigate("/dashboard");
-        }, 1000);
+        }, 1500);
       }
     } catch (error) {
       console.error("Auth error:", error);
@@ -84,21 +94,25 @@ const LoginRegisterModal = ({
   return (
     <div
       className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999]"
-      onClick={() => setShowModal(false)}
+      onClick={() => !loading && !redirecting && setShowModal(false)}
     >
       <div
-        className="bg-white text-gray-900 rounded-2xl shadow-xl p-8 w-[90%] max-w-md relative animate-fadeIn border border-gray-200"
+        className={`bg-white text-gray-900 rounded-2xl shadow-xl p-8 w-[90%] max-w-md relative border border-gray-200 ${
+          redirecting ? "opacity-70 pointer-events-none" : "animate-fadeIn"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close */}
-        <button
-          onClick={() => setShowModal(false)}
-          className="absolute top-4 right-5 text-gray-400 hover:text-gray-600 text-2xl font-light"
-        >
-          ×
-        </button>
+        {/* Close button */}
+        {!redirecting && (
+          <button
+            onClick={() => setShowModal(false)}
+            className="absolute top-4 right-5 text-gray-400 hover:text-gray-600 text-2xl font-light"
+          >
+            ×
+          </button>
+        )}
 
-        {/* Heading */}
+        {/* Title */}
         <h2 className="text-2xl font-bold text-center mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500">
           {isRegister ? "Create an Account" : "Welcome Back"}
         </h2>
@@ -116,92 +130,108 @@ const LoginRegisterModal = ({
           </p>
         )}
 
-        {/* Form */}
-        <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
-          {/* Username */}
-          <div>
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onBlur={() => setTouched((p) => ({ ...p, username: true }))}
-              className={`w-full px-4 py-2.5 rounded-lg border text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                touched.username && errors.username
-                  ? "border-red-500 focus:ring-red-400"
-                  : "border-gray-300"
-              }`}
-            />
-            {touched.username && errors.username && (
-              <p className="text-red-500 text-sm mt-1">{errors.username}</p>
-            )}
+        {/* Show spinner while redirecting */}
+        {redirecting ? (
+          <div className="flex flex-col items-center justify-center py-10">
+            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-4 text-gray-600 font-medium">Redirecting...</p>
           </div>
-
-          {/* Email (only for register) */}
-          {isRegister && (
+        ) : (
+          <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+            {/* Username */}
             <div>
               <input
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onBlur={() => setTouched((p) => ({ ...p, email: true }))}
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onBlur={() => setTouched((p) => ({ ...p, username: true }))}
+                disabled={loading}
                 className={`w-full px-4 py-2.5 rounded-lg border text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  touched.email && errors.email
+                  touched.username && errors.username
                     ? "border-red-500 focus:ring-red-400"
                     : "border-gray-300"
                 }`}
               />
-              {touched.email && errors.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              {touched.username && errors.username && (
+                <p className="text-red-500 text-sm mt-1">{errors.username}</p>
               )}
             </div>
-          )}
 
-          {/* Password */}
-          <div>
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onBlur={() => setTouched((p) => ({ ...p, password: true }))}
-              className={`w-full px-4 py-2.5 rounded-lg border text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                touched.password && errors.password
-                  ? "border-red-500 focus:ring-red-400"
-                  : "border-gray-300"
-              }`}
-            />
-            {touched.password && errors.password && (
-              <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+            {/* Email (only for register) */}
+            {isRegister && (
+              <div>
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setTouched((p) => ({ ...p, email: true }))}
+                  disabled={loading}
+                  className={`w-full px-4 py-2.5 rounded-lg border text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    touched.email && errors.email
+                      ? "border-red-500 focus:ring-red-400"
+                      : "border-gray-300"
+                  }`}
+                />
+                {touched.email && errors.email && (
+                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                )}
+              </div>
             )}
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-2 py-2.5 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {loading
-              ? isRegister
-                ? "Registering..."
-                : "Logging in..."
-              : isRegister
-              ? "Register"
-              : "Login"}
-          </button>
-        </form>
+            {/* Password */}
+            <div>
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onBlur={() => setTouched((p) => ({ ...p, password: true }))}
+                disabled={loading}
+                className={`w-full px-4 py-2.5 rounded-lg border text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  touched.password && errors.password
+                    ? "border-red-500 focus:ring-red-400"
+                    : "border-gray-300"
+                }`}
+              />
+              {touched.password && errors.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+              )}
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-2 py-2.5 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {loading
+                ? isRegister
+                  ? "Registering..."
+                  : "Logging in..."
+                : isRegister
+                ? "Register"
+                : "Login"}
+            </button>
+          </form>
+        )}
 
         {/* Toggle */}
-        <p className="text-gray-600 text-center mt-5 text-sm">
-          {isRegister ? "Already have an account?" : "Don’t have an account?"}{" "}
-          <button
-            onClick={() => setIsRegister(!isRegister)}
-            className="text-blue-600 hover:underline font-medium"
-          >
-            {isRegister ? "Login here" : "Register here"}
-          </button>
-        </p>
+        {!redirecting && (
+          <p className="text-gray-600 text-center mt-5 text-sm">
+            {isRegister
+              ? "Already have an account?"
+              : "Don’t have an account?"}{" "}
+            <button
+              onClick={() => setIsRegister(!isRegister)}
+              disabled={loading}
+              className="text-blue-600 hover:underline font-medium"
+            >
+              {isRegister ? "Login here" : "Register here"}
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );
