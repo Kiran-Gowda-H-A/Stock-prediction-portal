@@ -1,6 +1,6 @@
 import axios from "axios";
 
-// ✅ Read the base URL from .env (Vite exposes env vars via import.meta.env)
+//  Read the base URL from .env (Vite exposes env vars via import.meta.env)
 const BASE_URL = import.meta.env.VITE_BACKEND_BASE_API;
 
 const api = axios.create({
@@ -19,6 +19,7 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
+
 
 // 🔹 RESPONSE INTERCEPTOR — auto refresh expired access token
 api.interceptors.response.use(

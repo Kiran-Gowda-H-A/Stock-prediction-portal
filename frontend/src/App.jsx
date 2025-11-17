@@ -42,6 +42,7 @@ const App = () => {
           isRegister={isRegister}
           setIsRegister={setIsRegister}
         />
+        
       </div>
     </AuthProvider>
     </>

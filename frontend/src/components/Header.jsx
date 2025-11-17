@@ -40,7 +40,7 @@ const Header = ({ setShowModal, setIsRegister }) => {
             Stock Prediction Portal
           </h1>
         </a>
-
+    
         {/* Right Section */}
         <div className="flex items-center gap-3">
           {!isLoggedIn ? (
